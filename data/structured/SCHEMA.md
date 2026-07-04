@@ -75,7 +75,7 @@ Order records tracking purchases over time.
 | `order_date` | DATE | NOT NULL | Format: `YYYY-MM-DD` |
 | `status` | TEXT | NOT NULL, CHECK | `'Processing'`, `'Shipped'`, `'Delivered'`, `'Cancelled'` |
 | `shipped_date` | DATE | | NULL if not shipped |
-| `tracking_number` | TEXT | | Format: `1Z999AA1XXXXXXXX`, NULL if not shipped |
+| `tracking_number` | TEXT | | Format: `DEMO-TRK-XXXXXXXX` (sample data — not a real carrier tracking number), NULL if not shipped |
 | `total_amount` | REAL | NOT NULL, CHECK >= 0 | Sum of all line items |
 
 **Indexes:**

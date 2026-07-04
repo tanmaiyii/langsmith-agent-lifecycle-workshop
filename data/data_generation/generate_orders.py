@@ -6,7 +6,7 @@ This script generates 250 orders with realistic patterns:
 - Date distribution spanning 2 years with seasonal patterns
 - Customer assignment following power law distribution
 - Status calculation based on dates (Delivered, Shipped, Processing, Cancelled)
-- Realistic tracking numbers
+- Realistic-format tracking numbers with DEMO prefix so seed data is not confused with real UPS numbers
 """
 
 import datetime
@@ -156,7 +156,7 @@ def calculate_order_status(order_date, current_date=CURRENT_DATE):
     shipped_date = order_date + datetime.timedelta(days=ship_delay)
 
     # Generate tracking number
-    tracking = f"1Z999AA1{random.randint(10000000, 99999999)}"
+    tracking = f"DEMO-TRK-{random.randint(10000000, 99999999)}"
 
     # Determine if shipped or delivered based on current date
     days_since_ship = (current_date - shipped_date).days
@@ -218,7 +218,7 @@ def adjust_status_distribution(orders, current_date):
             order["shipped_date"] = shipped_date.isoformat()
             if not order["tracking_number"]:
                 order["tracking_number"] = (
-                    f"1Z999AA1{random.randint(10000000, 99999999)}"
+                    f"DEMO-TRK-{random.randint(10000000, 99999999)}"
                 )
 
         # Convert some to processing

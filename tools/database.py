@@ -10,10 +10,14 @@ Design note: Database connections are initialized at the module level using lazy
 The connection is created on first use and then cached for subsequent calls.
 """
 
+import re
+
 from langchain.tools import ToolRuntime, tool
 from langchain_community.utilities import SQLDatabase
 
 from config import DEFAULT_DB_PATH
+
+_SAMPLE_TRACKING_RE = re.compile(r"^1Z999AA1[0-9]{8}$")
 
 # Module-level database connection (lazy loaded)
 _db = None
@@ -73,7 +77,10 @@ def get_order_status(order_id: str) -> str:
     if shipped_date:
         response += f"- Shipped Date: {shipped_date}\n"
     if tracking_number:
-        response += f"- Tracking Number: {tracking_number}\n"
+        if tracking_number.startswith("DEMO-TRK-") or _SAMPLE_TRACKING_RE.match(tracking_number):
+            response += f"- Tracking Number: {tracking_number} (sample/test tracking number — not trackable on UPS.com)\n"
+        else:
+            response += f"- Tracking Number: {tracking_number}\n"
 
     return response
 
