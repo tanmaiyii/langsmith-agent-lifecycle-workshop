@@ -29,7 +29,15 @@ git add evals/DEMO_TRIGGER.md
 git commit -m "Demo: trigger Eval Regression Gate ($TIMESTAMP)"
 git push -u origin "$BRANCH"
 
+# Derive owner/repo from the `origin` remote explicitly, so this works even
+# when the local checkout has other remotes configured (e.g. a personal
+# fork as a second remote) and `gh` can't infer a default repo on its own.
+ORIGIN_URL="$(git remote get-url origin)"
+REPO="$(echo "$ORIGIN_URL" | sed -E 's#(git@github\.com:|https://github\.com/)##; s#\.git$##')"
+
 gh pr create \
+  --repo "$REPO" \
+  --head "$BRANCH" \
   --title "Demo: Eval Regression Gate ($TIMESTAMP)" \
   --body "Throwaway PR to demo \`.github/workflows/eval-regression.yml\`. Only touches \`evals/DEMO_TRIGGER.md\` — no agent or eval logic changes. Watch the 'Eval Regression Gate' check run, then close this PR without merging."
 
