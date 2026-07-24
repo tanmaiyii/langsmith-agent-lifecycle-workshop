@@ -18,6 +18,7 @@ UI (same dataset -> before/after diffing).
 
 import argparse
 import json
+import os
 import sys
 import uuid
 from pathlib import Path
@@ -35,6 +36,36 @@ DATASET_PATH = (
     / "module_2"
     / "baseline_dataset.json"
 )
+
+
+def get_experiment_prefix_and_metadata():
+    """Build a PR/commit-traceable experiment prefix and metadata dict.
+
+    Reads GitHub Actions context (passed in as env vars by the workflow) so
+    every CI experiment in LangSmith can be traced back to the PR and commit
+    that produced it. Falls back to a static prefix for local runs.
+    """
+    pr_number = os.environ.get("PR_NUMBER")
+    commit_sha = os.environ.get("COMMIT_SHA")
+    branch = os.environ.get("BRANCH_NAME")
+
+    if pr_number and commit_sha:
+        prefix = f"ci-pr{pr_number}-{commit_sha[:7]}"
+    elif commit_sha:
+        prefix = f"ci-{commit_sha[:7]}"
+    else:
+        prefix = "ci-local"
+
+    metadata = {
+        k: v
+        for k, v in {
+            "pr_number": pr_number,
+            "commit_sha": commit_sha,
+            "branch": branch,
+        }.items()
+        if v
+    }
+    return prefix, metadata
 
 
 def sync_dataset_from_json(client: Client, dataset_name: str, json_path: Path):
@@ -127,17 +158,21 @@ def main():
     agent = build_target_agent()
     target_function = make_target_function(agent)
 
+    experiment_prefix, experiment_metadata = get_experiment_prefix_and_metadata()
+
     results = client.evaluate(
         target_function,
         data=dataset.name,
         evaluators=[correctness_evaluator, count_total_tool_calls_evaluator],
-        experiment_prefix="ci-regression",
+        experiment_prefix=experiment_prefix,
         description="CI regression gate for supervisor_hitl_sql_agent",
+        metadata=experiment_metadata,
         max_concurrency=5,
     )
 
     correctness_scores = []
     tool_call_counts = []
+    rows = []
     print("\n--- Per-example results ---")
     for result in results:
         feedback = {
@@ -150,6 +185,7 @@ def main():
         if "total_tool_calls" in feedback:
             tool_call_counts.append(feedback["total_tool_calls"])
         status = "PASS" if correct else "FAIL"
+        rows.append((status, category, question))
         print(f"[{status}] ({category}) {question}")
 
     pass_rate = sum(correctness_scores) / len(correctness_scores)
@@ -162,12 +198,42 @@ def main():
     print(f"Avg tool calls per example (informational, non-blocking): {avg_tool_calls:.1f}")
     print(f"Threshold: {args.threshold:.2%}")
 
-    if pass_rate < args.threshold:
+    passed = pass_rate >= args.threshold
+    write_github_step_summary(results, pass_rate, avg_tool_calls, args.threshold, passed, rows)
+
+    if not passed:
         print(f"\nFAILED: pass rate {pass_rate:.2%} is below threshold {args.threshold:.2%}")
         sys.exit(1)
 
     print("\nPASSED")
     sys.exit(0)
+
+
+def write_github_step_summary(results, pass_rate, avg_tool_calls, threshold, passed, rows):
+    """Append a markdown summary (with a link straight to the LangSmith
+    experiment) to the GitHub Actions Job Summary, so it's one click away
+    from the PR's Checks tab. No-op outside of GitHub Actions."""
+    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_path:
+        return
+
+    status_emoji = "✅ PASSED" if passed else "❌ FAILED"
+    lines = [
+        "## Eval Regression Gate",
+        "",
+        f"**{status_emoji}** — correctness pass rate {pass_rate:.2%}, threshold {threshold:.2%}",
+        "",
+        f"[View experiment '{results.experiment_name}' in LangSmith]({results.url})",
+        "",
+        f"Avg tool calls per example (informational, non-blocking): {avg_tool_calls:.1f}",
+        "",
+        "| Result | Category | Question |",
+        "|---|---|---|",
+    ]
+    lines.extend(f"| {status} | {category} | {question} |" for status, category, question in rows)
+
+    with open(summary_path, "a") as f:
+        f.write("\n".join(lines) + "\n")
 
 
 if __name__ == "__main__":
