@@ -168,3 +168,4 @@ cython_debug/
 build_plans/
 data/vector_stores/*.pkl
 skills-lock.json
+GUIDE.md

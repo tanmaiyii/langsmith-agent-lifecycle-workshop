@@ -22,8 +22,9 @@ from typing import Literal
 # Examples:
 #   - "anthropic:claude-haiku-4-5" (fast, cost-effective)
 #   - "anthropic:claude-sonnet-4" (balanced)
-#   - "openai:gpt-5-mini" (fast, OpenAI)
-#   - "openai:gpt-5-nano" (lightweight, OpenAI)
+#   - "openai:gpt-5.4" (balanced, OpenAI — also serves as the LLM-as-judge model
+#     in evaluators.py, so avoid dropping below this tier for Module 2 evals)
+#   - "openai:gpt-5.4-mini" (fast/cheap, OpenAI)
 DEFAULT_MODEL = os.getenv("WORKSHOP_MODEL", "anthropic:claude-haiku-4-5")
 
 # ============================================================================
@@ -54,8 +55,8 @@ class Context:
     model: Literal[
         "anthropic:claude-haiku-4-5",
         "anthropic:claude-sonnet-4-5",
-        "openai:gpt-5-mini",
-        "openai:gpt-5-nano",
+        "openai:gpt-5.4",
+        "openai:gpt-5.4-mini",
     ] = DEFAULT_MODEL
 
 
